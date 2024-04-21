@@ -2,10 +2,13 @@
 This is a study project of Dijkstra's algorithm for university, on the subject of parallel and distributed algorithms.
 The project contains 4 implementations:
 
-C++ Threads
-C++ STL Parallel
-C++ OpenMP
-C++ MPI
+-C++ Threads
+
+-C++ STL Parallel
+
+-C++ OpenMP
+
+-C++ MPI
 
 The input for each algorithm will be extracted from an "input...txt" file inside project folder.
 The input file has the following format:
