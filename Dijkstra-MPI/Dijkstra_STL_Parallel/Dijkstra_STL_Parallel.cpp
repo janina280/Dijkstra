@@ -6,8 +6,8 @@
 // #include <vector>
 //
 // #define INF         1000000
-// #define INPUT_FILE  "input.txt"
-// #define OUTPUT_FILE "output.txt"
+// #define INPUT_FILE  "input_STL.txt"
+// #define OUTPUT_FILE "output_STL.txt"
 //
 // /*
 //  * Used to store informations about a graph node.
