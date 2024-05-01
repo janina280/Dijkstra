@@ -1,172 +1,83 @@
-#include<iostream>
-#include<stdlib.h>
-#include<pthread.h>
-#include<climits>
-#include<unistd.h>
-#define N 4
+﻿#include <iostream>
+#include <vector>
+#include <limits>
+#include <thread>
 
 using namespace std;
 
-struct stFin {
-    int st;
-    int fin;
+// Structura pentru reprezentarea unui nod în graf
+struct Node {
+    int index;
+    int distance;
+    bool visited;
+    vector<pair<int, int>> neighbors; // vecinii nodului, fiecare cu ponderea muchiei
 };
-struct g {
-    int val, flag = 0;
-};
 
-int no_nodes, st_pt;
-int graph[4][4] = { {0,1,5,4},{1,0,2,6},{5,2,0,3},{4,6,3,0} };
-int resGraph[N][N];
+// Implementarea algoritmului lui Dijkstra
+vector<int> dijkstra(vector<Node>& graph, int source) {
+    int n = graph.size();
 
-void updateRes(int k, int cur, g com[][N])
-{
-    for (int i = 0; i < no_nodes; i++)
-    {
-        resGraph[k][i] = com[cur][i].val;
-    }
-}
+    // Initializare distante si marcari
+    vector<int> distance(n, numeric_limits<int>::max());
+    vector<bool> visited(n, false);
 
-void init(g com[][N])
-{
-    for (int i = 0; i < no_nodes; i++)
-    {
-        for (int j = 0; j < no_nodes; j++)
-        {
-            com[i][j].val = INT_MAX - 100;
-            com[i][j].flag = 0;
-        }
-        com[0][i].val = INT_MAX - 100;
-    }
-}
+    // Setare distanta pentru sursa
+    distance[source] = 0;
 
-int minimum(int a, int b)
-{
-    return (a > b ? b : a);
-}
+    // Numarul de thread-uri pe care dorim să împărțim iterația
+    size_t num_threads = thread::hardware_concurrency();
 
-int minimum_index(int k, g com[][N])
-{
-    int minval, min_index = -1;
-    minval = 10000;
-    for (int i = 0; i < no_nodes; i++)
-    {
-        if (com[k][i].val < minval && com[k][i].flag == 0)
-        {
-            minval = com[k][i].val;
-            min_index = i;
-        }
-    }
-    return min_index;
-}
-
-void inc_flag(int k, g com[][N])
-{
-    for (int i = 0; i < N; i++)
-    {
-        com[i][k].flag = 1;
-    }
-}
-
-bool checkFlag(g com[][N])
-{
-    for (int i = 0; i < no_nodes; i++)
-    {
-        if (com[0][i].flag == 0)
-            return true;
-    }
-    return false;
-}
-
-void* shortestPath(void* varg)
-{
-    int* st_pt1 = (int*)varg;
-    int stptq = *st_pt1;
-    int cur = 0;
-    g com[N][N];
-    init(com);
-
-    com[0][stptq].val = 0;
-
-    do {
-        cur++;
-        for (int j = 0; j < no_nodes; j++)
-        {
-            com[cur][j].val = minimum(com[cur - 1][j].val, com[cur - 1][stptq].val + graph[stptq][j]);
-            if (com[cur][j].val != com[cur - 1][j].val)
-            {
-                for (int i = 0; i < N; i++)
-                    com[i][j].flag = 0;
+    // Functia care va fi executată de fiecare fir de execuție
+    auto thread_function = [&](size_t tid) {
+        for (size_t i = tid; i < n - 1; i += num_threads) {
+            int u = -1;
+            // Alegerea nodului nevizitat cu cea mai mica distanta
+            for (size_t j = 0; j < n; ++j) {
+                if (!visited[j] && (u == -1 || distance[j] < distance[u])) {
+                    u = j;
+                }
             }
-        }
-        inc_flag(stptq, com);
-        stptq = minimum_index(cur, com);
-
-    } while (checkFlag(com));
-
-    // Cre?te flagul pentru nodul curent la sf�r?itul calculului.
-    inc_flag(stptq, com);
-
-    // Actualizeaz? matricea rezultatului pentru nodul curent.
-    updateRes(stptq, cur, com);
-
-    // Returneaz? matricea rezultatului pentru nodul curent.
-    pthread_exit(NULL);
-}
-
-void dijikstra(int no)
-{
-    no_nodes = no;
-    pthread_t tid[no_nodes];
-
-    cout << "\nEnter info into graph : " << endl;
-    // inputinfo(); Nu este nevoie de aceast? func?ie �n implementarea pe fire de execu?ie.
-
-    cout << "\nGraph : " << endl;
-    for (int i = 0; i < no_nodes; i++) {
-        pthread_create(&tid[i], NULL, shortestPath, &i);
-    }
-
-    for (int i = 0; i < no_nodes; i++) {
-        pthread_join(tid[i], NULL);
-    }
-}
-
-void print(int g[N][N])
-{
-    char st = 'A';
-    for (int i = 0; i < no_nodes; i++)
-    {
-        char lt = 'A';
-        if (i == 0) {
-            cout << "\t";
-            for (int k = 0; k < no_nodes; k++)
-            {
-                cout << lt++ << "\t";
+            // Actualizarea distantei pentru vecinii nodului selectat
+            for (auto& neighbor : graph[u].neighbors) {
+                int v = neighbor.first;
+                int weight = neighbor.second;
+                distance[v] = min(distance[v], distance[u] + weight);
             }
-            cout << endl;
+            visited[u] = true;
         }
-        for (int j = 0; j < no_nodes; j++)
-        {
-            if (j == 0)
-            {
-                cout << st++ << "\t";
-            }
-            if (g[i][j] != INT_MAX - 100)
-                cout << g[i][j] << "\t";
-            else
-                cout << "%\t";
-        }
-        cout << endl;
+        };
+
+    // Vectorul pentru firele de execuție
+    vector<thread> threads;
+
+    // Crearea și pornirea firelor de execuție
+    for (size_t i = 0; i < num_threads; ++i) {
+        threads.emplace_back(thread_function, i);
     }
+
+    // Așteptarea ca toate firele de execuție să se termine
+    for (auto& t : threads) {
+        t.join();
+    }
+
+    return distance;
 }
 
-int main()
-{
-    int no;
-    cout << "\nEnter no of vertices : ";
-    cin >> no;
-    dijikstra(no);
-    cout << "\nResult:" << endl;
-    print(resGraph);
+int main() {
+    vector<Node> graph = {
+        {0, 0, false, {{1, 4}, {2, 1}}},
+        {1, numeric_limits<int>::max(), false, {{2, 2}, {3, 5}}},
+        {2, numeric_limits<int>::max(), false, {{3, 2}}},
+        {3, numeric_limits<int>::max(), false, {}}
+    };
+
+    int source = 0;
+    vector<int> shortest_distances = dijkstra(graph, source);
+
+    cout << "Cele mai scurte distante de la nodul " << source << " la celelalte noduri:\n";
+    for (size_t i = 0; i < shortest_distances.size(); ++i) {
+        cout << "Nod " << i << ": " << shortest_distances[i] << "\n";
+    }
+
+    return 0;
 }
